@@ -1,0 +1,5 @@
+repos:
+  - repo: https://github.com/andreoliwa/nitpick
+    rev: v0.33.1
+    hooks:
+      - id: nitpick
