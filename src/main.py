@@ -1,8 +1,6 @@
+import asyncio
 from base64 import b64decode
 from hashlib import sha256
-from itertools import repeat
-from multiprocessing import Manager, Lock, Process
-from multiprocessing.pool import AsyncResult, Pool
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -24,7 +22,7 @@ REPO_SPEC = (REPO_ORG, REPO_NAME, REPO_BRANCH)
 
 SUMS_FILE = Path("sha256sums")
 
-N_PROCESSES = 3
+N_WORKERS = 3
 
 
 def get_branch_id(api: RepositoryApi, owner: str, repo: str, branch: str) -> str:
@@ -55,55 +53,59 @@ def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: s
 
 
 def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: str) -> bytes:
-    result: AsyncResult = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath, async_req=True)  # type: ignore
-    raw_content: ContentsResponse = result.get()
-    if raw_content.content is None:
+    content_response: ContentsResponse = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath)  # type: ignore
+    if content_response.content is None:
         raise RuntimeError(f"Failed to get {filepath} content")
-    if raw_content.type != "file":
-        raise RuntimeError(f"Unexpected content type (expected 'file', got {raw_content.type})")
-    if raw_content.encoding != "base64":
-        raise RuntimeError(f"Unexpected content encoding (expected 'base64', got {raw_content.encoding})")
+    if content_response.type != "file":
+        raise RuntimeError(f"Unexpected content type (expected 'file', got {content_response.type})")
+    if content_response.encoding != "base64":
+        raise RuntimeError(f"Unexpected content encoding (expected 'base64', got {content_response.encoding})")
 
-    content = b64decode(raw_content.content)
+    content = b64decode(content_response.content)
 
     return content
 
 
-def write_filepath_sha256sum(filepath: Path, dir: TemporaryDirectory, lock) -> None:
-    content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath))
-    sha_sum = sha256(content).hexdigest()
-    parent_dir = dir.name / filepath.parent
-    local_filepath = dir.name / filepath
-    if not parent_dir.exists():
-        parent_dir.mkdir(parents=True)
-    with open(local_filepath, "w") as f:
-        f.write(content.decode())
-    with lock, open(SUMS_FILE, "a") as f:
-        f.write(f"{filepath}\t{sha_sum}\n")
+async def write_filepath_sha256sum(
+    api: RepositoryApi,
+    filepath: Path,
+    dir: TemporaryDirectory,
+    sums_file_lock: asyncio.Lock,
+    n_tasks_sem: asyncio.Semaphore,
+) -> None:
+    async with n_tasks_sem:
+        content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath))
+        sha_sum = sha256(content).hexdigest()
+        parent_dir = dir.name / filepath.parent
+        local_filepath = dir.name / filepath
+        if not parent_dir.exists():
+            parent_dir.mkdir(parents=True)
+        with open(local_filepath, "w") as f:
+            f.write(content.decode())
+        with open(SUMS_FILE, "a") as f:
+            async with sums_file_lock:
+                f.write(f"{filepath}\t{sha_sum}\n")
 
 
-def write_sums(filepaths: tuple[Path]) -> None:
+async def write_sums(api: RepositoryApi, filepaths: tuple[Path]) -> None:
     if SUMS_FILE.exists():
         SUMS_FILE.unlink()
 
     directory = TemporaryDirectory()
-    lock = Lock()
-    for i in range(len(filepaths)):
-        process = Process(target=write_filepath_sha256sum, args=(filepaths[i], directory, lock))
-        process.start()
-        process.join()
-
-    """ Should be this, but seems like giteapy doesn't like it... """
-    # with Pool(processes=N_PROCESSES) as pool:
-    #     lock = Manager().Lock()
-    #     pool.starmap(write_filepath_sha256sum, zip(filepaths, repeat(directory), repeat(lock)))
+    n_tasks_sem = asyncio.Semaphore(N_WORKERS)
+    sums_file_lock = asyncio.Lock()
+    tasks = (write_filepath_sha256sum(api, filepath, directory, sums_file_lock, n_tasks_sem) for filepath in filepaths)
+    await asyncio.gather(*tasks)
 
 
-if __name__ == "__main__":
+async def main():
     configuration = Configuration()
     configuration.host = REPO_HOST
     api = RepositoryApi(ApiClient(configuration=configuration))
 
-    branch_id = get_branch_id(api, *REPO_SPEC)
     filepaths = get_branch_filepaths(api, *REPO_SPEC)
-    write_sums(filepaths)
+    await write_sums(api, filepaths)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
