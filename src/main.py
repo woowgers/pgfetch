@@ -22,15 +22,15 @@ REPO_SPEC = (REPO_ORG, REPO_NAME, REPO_BRANCH)
 
 SUMS_FILE = Path("sha256sums")
 
-N_WORKERS = 3
+N_TASKS_MAX = 3
 
 
-def get_branch_id(api: RepositoryApi, owner: str, repo: str, branch: str) -> str:
-    raw_branch: Branch = api.repo_get_branch(owner=owner, repo=repo, branch=branch)  # type: ignore
-    if raw_branch.commit is None:
-        raise RuntimeError(f"No commits in branch `{branch}`")
+def get_branch_id(api: RepositoryApi, owner: str, repo: str, branch_name: str) -> str:
+    branch: Branch = api.repo_get_branch(owner=owner, repo=repo, branch=branch_name)  # type: ignore
+    if branch.commit is None:
+        raise RuntimeError(f"No commits in branch `{branch_name}`")
 
-    return raw_branch.commit.id
+    return branch.commit.id
 
 
 def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: str) -> tuple[Path, ...]:
@@ -42,17 +42,17 @@ def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: s
     def entry_is_regular_file(entry: GitEntry) -> bool:
         return entry.type == "blob"
 
-    raw_tree: GitTreeResponse = api.get_tree(owner=owner, repo=repo, sha=branch_id, recursive=True, page=1)  # type: ignore
-    if raw_tree.tree is None:
+    tree: GitTreeResponse = api.get_tree(owner=owner, repo=repo, sha=branch_id, recursive=True, page=1)  # type: ignore
+    if tree.tree is None:
         raise RuntimeError("Failed to fetch repository tree")
 
-    files_entries = filter(entry_is_regular_file, raw_tree.tree)
+    files_entries = filter(entry_is_regular_file, tree.tree)
     filepath_tuple = tuple(map(entry_get_filepath, files_entries))
 
     return filepath_tuple
 
 
-def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: str) -> bytes:
+def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: Path) -> bytes:
     content_response: ContentsResponse = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath)  # type: ignore
     if content_response.content is None:
         raise RuntimeError(f"Failed to get {filepath} content")
@@ -74,12 +74,14 @@ async def write_filepath_sha256sum(
     n_tasks_sem: asyncio.Semaphore,
 ) -> None:
     async with n_tasks_sem:
-        content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath))
+        content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=filepath)
         sha_sum = sha256(content).hexdigest()
+
         parent_dir = dir.name / filepath.parent
         local_filepath = dir.name / filepath
         if not parent_dir.exists():
             parent_dir.mkdir(parents=True)
+
         with open(local_filepath, "w") as f:
             f.write(content.decode())
         with open(SUMS_FILE, "a") as f:
@@ -92,7 +94,7 @@ async def write_sums(api: RepositoryApi, filepaths: tuple[Path]) -> None:
         SUMS_FILE.unlink()
 
     directory = TemporaryDirectory()
-    n_tasks_sem = asyncio.Semaphore(N_WORKERS)
+    n_tasks_sem = asyncio.Semaphore(N_TASKS_MAX)
     sums_file_lock = asyncio.Lock()
     tasks = (
         asyncio.create_task(write_filepath_sha256sum(api, filepath, directory, sums_file_lock, n_tasks_sem))
