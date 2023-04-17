@@ -1,6 +1,6 @@
 from base64 import b64decode
 from pathlib import Path
-from shutil import rmtree
+from hashlib import sha256
 
 from giteapy import (
     ApiClient,
@@ -18,7 +18,7 @@ REPO_NAME = "project-configuration"
 REPO_BRANCH = "master"
 REPO_SPEC = (REPO_ORG, REPO_NAME, REPO_BRANCH)
 
-DOWNLOAD_DIR = Path("downloads")
+SUMS_FILE = Path("sha256sums")
 
 
 def get_branch_id(api: RepositoryApi, owner: str, repo: str, branch: str) -> str:
@@ -52,7 +52,7 @@ def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: s
     return filepath_tuple
 
 
-def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: str) -> str:
+def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: str) -> bytes:
     raw_content = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath)
     if not isinstance(raw_content, ContentsResponse):
         raise RuntimeError("Unexpected SDK return value")
@@ -63,7 +63,7 @@ def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: st
     if raw_content.encoding != "base64":
         raise RuntimeError(f"Unexpected content encoding (expected 'base64', got {raw_content.encoding})")
 
-    content = b64decode(raw_content.content).decode()
+    content = b64decode(raw_content.content)
 
     return content
 
@@ -73,17 +73,14 @@ if __name__ == "__main__":
     configuration.host = REPO_HOST
     api = RepositoryApi(ApiClient(configuration=configuration))
 
-    if DOWNLOAD_DIR.exists():
-        rmtree(DOWNLOAD_DIR)
-    DOWNLOAD_DIR.mkdir()
-
     branch_id = get_branch_id(api, *REPO_SPEC)
     filepaths = get_branch_filepaths(api, *REPO_SPEC)
 
-    for filepath in filepaths:
-        local_filepath = DOWNLOAD_DIR / filepath
-        parent_dir = DOWNLOAD_DIR / filepath.parent
-        if not parent_dir.exists():
-            parent_dir.mkdir(parents=True)
-        with open(local_filepath, "w") as f:
-            f.write(get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath)))
+    if SUMS_FILE.exists():
+        SUMS_FILE.unlink()
+
+    with open(SUMS_FILE, "w") as f:
+        for filepath in filepaths:
+            content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath))
+            sha_sum = sha256(content).hexdigest()
+            f.write(f"{filepath}\t{sha_sum}\n")
