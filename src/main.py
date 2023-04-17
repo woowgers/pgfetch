@@ -1,116 +1,35 @@
 import asyncio
-from base64 import b64decode
-from hashlib import sha256
-from pathlib import Path
-from tempfile import TemporaryDirectory
+import sys
+from os.path import basename
 
-from giteapy import (
-    ApiClient,
-    Branch,
-    Configuration,
-    ContentsResponse,
-    GitEntry,
-    GitTreeResponse,
-    RepositoryApi,
-)
-
-REPO_HOST = "https://gitea.radium.group/api/v1"
-REPO_ORG = "radium"
-REPO_NAME = "project-configuration"
-REPO_BRANCH = "master"
-REPO_SPEC = (REPO_ORG, REPO_NAME, REPO_BRANCH)
-
-SUMS_FILE = Path("sha256sums")
-
-N_TASKS_MAX = 3
+from fetcher import RepositoryFilepathFetcher
 
 
-def get_branch_id(api: RepositoryApi, owner: str, repo: str, branch_name: str) -> str:
-    branch: Branch = api.repo_get_branch(owner=owner, repo=repo, branch=branch_name)  # type: ignore
-    if branch.commit is None:
-        raise RuntimeError(f"No commits in branch `{branch_name}`")
-
-    return branch.commit.id
-
-
-def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: str) -> tuple[Path, ...]:
-    def entry_get_filepath(entry: GitEntry) -> Path:
-        if entry.path is None:
-            raise RuntimeError("Entry doesn't have name")
-        return Path(entry.path)
-
-    def entry_is_regular_file(entry: GitEntry) -> bool:
-        return entry.type == "blob"
-
-    tree: GitTreeResponse = api.get_tree(owner=owner, repo=repo, sha=branch_id, recursive=True, page=1)  # type: ignore
-    if tree.tree is None:
-        raise RuntimeError("Failed to fetch repository tree")
-
-    files_entries = filter(entry_is_regular_file, tree.tree)
-    filepath_tuple = tuple(map(entry_get_filepath, files_entries))
-
-    return filepath_tuple
-
-
-def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: Path) -> bytes:
-    content_response: ContentsResponse = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath)  # type: ignore
-    if content_response.content is None:
-        raise RuntimeError(f"Failed to get {filepath} content")
-    if content_response.type != "file":
-        raise RuntimeError(f"Unexpected content type (expected 'file', got {content_response.type})")
-    if content_response.encoding != "base64":
-        raise RuntimeError(f"Unexpected content encoding (expected 'base64', got {content_response.encoding})")
-
-    content = b64decode(content_response.content)
-
-    return content
-
-
-async def write_filepath_sha256sum(
-    api: RepositoryApi,
-    filepath: Path,
-    dir: TemporaryDirectory,
-    sums_file_lock: asyncio.Lock,
-    n_tasks_sem: asyncio.Semaphore,
-) -> None:
-    async with n_tasks_sem:
-        content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=filepath)
-        sha_sum = sha256(content).hexdigest()
-
-        parent_dir = dir.name / filepath.parent
-        local_filepath = dir.name / filepath
-        if not parent_dir.exists():
-            parent_dir.mkdir(parents=True)
-
-        with open(local_filepath, "w") as f:
-            f.write(content.decode())
-        with open(SUMS_FILE, "a") as f:
-            async with sums_file_lock:
-                f.write(f"{filepath}\t{sha_sum}\n")
-
-
-async def write_sums(api: RepositoryApi, filepaths: tuple[Path]) -> None:
-    if SUMS_FILE.exists():
-        SUMS_FILE.unlink()
-
-    directory = TemporaryDirectory()
-    n_tasks_sem = asyncio.Semaphore(N_TASKS_MAX)
-    sums_file_lock = asyncio.Lock()
-    tasks = (
-        asyncio.create_task(write_filepath_sha256sum(api, filepath, directory, sums_file_lock, n_tasks_sem))
-        for filepath in filepaths
+async def main_async():
+    fetcher = RepositoryFilepathFetcher(
+        host="gitea.radium.group/api/v1", org="radium", repo="project-configuration", branch="master"
     )
-    await asyncio.gather(*tasks)
+    await fetcher.list_all_contents_async()
 
 
-async def main():
-    configuration = Configuration()
-    configuration.host = REPO_HOST
-    api = RepositoryApi(ApiClient(configuration=configuration))
-
-    filepaths = get_branch_filepaths(api, *REPO_SPEC)
-    await write_sums(api, filepaths)
+def main():
+    fetcher = RepositoryFilepathFetcher(
+        host="gitea.radium.group/api/v1", org="radium", repo="project-configuration", branch="master"
+    )
+    fetcher.list_all_contents()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    OPTIONS = ("async", "sync")
+
+    def help():
+        print(f"Usage: python {basename(__file__)} < async | sync >")
+        exit()
+
+    if len(sys.argv) != 2 or sys.argv[1] not in OPTIONS:
+        help()
+
+    if sys.argv[1] == "async":
+        asyncio.run(main_async())
+    else:
+        main()
