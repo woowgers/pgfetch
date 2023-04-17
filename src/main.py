@@ -1,35 +1,18 @@
 import asyncio
-import sys
-from os.path import basename
+from tempfile import TemporaryDirectory
+import os
 
-from fetcher import RepositoryFilepathFetcher
+from fetcher import RepositoryFileFetcher
 
 
-async def main_async():
-    fetcher = RepositoryFilepathFetcher(
-        host="gitea.radium.group/api/v1", org="radium", repo="project-configuration", branch="master"
+async def main():
+    fetcher = RepositoryFileFetcher(
+        host="gitea.radium.group", org="radium", repo="project-configuration", branch="master"
     )
-    await fetcher.list_all_contents_async()
-
-
-def main():
-    fetcher = RepositoryFilepathFetcher(
-        host="gitea.radium.group/api/v1", org="radium", repo="project-configuration", branch="master"
-    )
-    fetcher.list_all_contents()
+    tmpdir = TemporaryDirectory()
+    await fetcher.save_contents(root_dir=tmpdir.name, cksum_file="sha256sums", n_tasks_max=10)
+    print(*tuple(os.walk(tmpdir.name)))
 
 
 if __name__ == "__main__":
-    OPTIONS = ("async", "sync")
-
-    def help():
-        print(f"Usage: python {basename(__file__)} < async | sync >")
-        exit()
-
-    if len(sys.argv) != 2 or sys.argv[1] not in OPTIONS:
-        help()
-
-    if sys.argv[1] == "async":
-        asyncio.run(main_async())
-    else:
-        main()
+    asyncio.run(main())
