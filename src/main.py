@@ -94,7 +94,10 @@ async def write_sums(api: RepositoryApi, filepaths: tuple[Path]) -> None:
     directory = TemporaryDirectory()
     n_tasks_sem = asyncio.Semaphore(N_WORKERS)
     sums_file_lock = asyncio.Lock()
-    tasks = (write_filepath_sha256sum(api, filepath, directory, sums_file_lock, n_tasks_sem) for filepath in filepaths)
+    tasks = (
+        asyncio.create_task(write_filepath_sha256sum(api, filepath, directory, sums_file_lock, n_tasks_sem))
+        for filepath in filepaths
+    )
     await asyncio.gather(*tasks)
 
 
