@@ -1,6 +1,8 @@
 import asyncio
+import aiofiles
 from hashlib import sha256
 from pathlib import Path
+import logging
 
 from giteaapi import GiteaRepositoryApi
 
@@ -14,10 +16,9 @@ class RepositoryFileFetcher:
     async def _write_filepath_cksum(
         self, filepath: str, content: bytes, cksum_file: str, cksum_file_lock: asyncio.Lock
     ):
-        async with cksum_file_lock:
+        async with cksum_file_lock, aiofiles.open(filepath, "a") as f:
             cksum = sha256(content).hexdigest()
-            with open(cksum_file, "a") as f:
-                f.write(f"{filepath}\t{cksum}\n")
+            await f.write(f"{filepath}\t{cksum}\n")
 
     async def _save_filepath_content(
         self,
@@ -27,6 +28,8 @@ class RepositoryFileFetcher:
         cksum_file: str | None = None,
         cksum_file_lock: asyncio.Lock | None = None,
     ):
+        logging.log(level=logging.INFO, msg=f"Fetching {filepath}...")
+
         if cksum_file and not cksum_file_lock:
             raise ValueError("`cksum_file` and `cksum_file_lock` must only be specified conjointly")
 
@@ -37,9 +40,9 @@ class RepositoryFileFetcher:
         if not parent_dir.exists():
             parent_dir.mkdir(parents=True)
 
-        with open(local_filepath, "w") as f:
+        async with aiofiles.open(local_filepath, "w") as f:
             content = await self.api.get_file_content(filepath)
-            f.write(content.decode())
+            await f.write(content.decode())
 
         if cksum_file and cksum_file_lock:
             await self._write_filepath_cksum(filepath, content, cksum_file, cksum_file_lock)
