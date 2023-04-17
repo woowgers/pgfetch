@@ -1,6 +1,10 @@
 from base64 import b64decode
-from pathlib import Path
 from hashlib import sha256
+from itertools import repeat
+from multiprocessing import Manager, Lock, Process
+from multiprocessing.pool import AsyncResult, Pool
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from giteapy import (
     ApiClient,
@@ -20,11 +24,11 @@ REPO_SPEC = (REPO_ORG, REPO_NAME, REPO_BRANCH)
 
 SUMS_FILE = Path("sha256sums")
 
+N_PROCESSES = 3
+
 
 def get_branch_id(api: RepositoryApi, owner: str, repo: str, branch: str) -> str:
-    raw_branch = api.repo_get_branch(owner=owner, repo=repo, branch=branch)
-    if not isinstance(raw_branch, Branch):
-        raise RuntimeError("Unexpected SDK return value")
+    raw_branch: Branch = api.repo_get_branch(owner=owner, repo=repo, branch=branch)  # type: ignore
     if raw_branch.commit is None:
         raise RuntimeError(f"No commits in branch `{branch}`")
 
@@ -40,9 +44,7 @@ def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: s
     def entry_is_regular_file(entry: GitEntry) -> bool:
         return entry.type == "blob"
 
-    raw_tree = api.get_tree(owner=owner, repo=repo, sha=branch_id, recursive=True, page=1)
-    if not isinstance(raw_tree, GitTreeResponse):
-        raise RuntimeError("Unexpected SDK return value")
+    raw_tree: GitTreeResponse = api.get_tree(owner=owner, repo=repo, sha=branch_id, recursive=True, page=1)  # type: ignore
     if raw_tree.tree is None:
         raise RuntimeError("Failed to fetch repository tree")
 
@@ -53,9 +55,8 @@ def get_branch_filepaths(api: RepositoryApi, owner: str, repo: str, branch_id: s
 
 
 def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: str) -> bytes:
-    raw_content = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath)
-    if not isinstance(raw_content, ContentsResponse):
-        raise RuntimeError("Unexpected SDK return value")
+    result: AsyncResult = api.repo_get_contents(owner=owner, repo=repo, filepath=filepath, async_req=True)  # type: ignore
+    raw_content: ContentsResponse = result.get()
     if raw_content.content is None:
         raise RuntimeError(f"Failed to get {filepath} content")
     if raw_content.type != "file":
@@ -68,6 +69,36 @@ def get_filepath_content(api: RepositoryApi, owner: str, repo: str, filepath: st
     return content
 
 
+def write_filepath_sha256sum(filepath: Path, dir: TemporaryDirectory, lock) -> None:
+    content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath))
+    sha_sum = sha256(content).hexdigest()
+    parent_dir = dir.name / filepath.parent
+    local_filepath = dir.name / filepath
+    if not parent_dir.exists():
+        parent_dir.mkdir(parents=True)
+    with open(local_filepath, "w") as f:
+        f.write(content.decode())
+    with lock, open(SUMS_FILE, "a") as f:
+        f.write(f"{filepath}\t{sha_sum}\n")
+
+
+def write_sums(filepaths: tuple[Path]) -> None:
+    if SUMS_FILE.exists():
+        SUMS_FILE.unlink()
+
+    directory = TemporaryDirectory()
+    lock = Lock()
+    for i in range(len(filepaths)):
+        process = Process(target=write_filepath_sha256sum, args=(filepaths[i], directory, lock))
+        process.start()
+        process.join()
+
+    """ Should be this, but seems like giteapy doesn't like it... """
+    # with Pool(processes=N_PROCESSES) as pool:
+    #     lock = Manager().Lock()
+    #     pool.starmap(write_filepath_sha256sum, zip(filepaths, repeat(directory), repeat(lock)))
+
+
 if __name__ == "__main__":
     configuration = Configuration()
     configuration.host = REPO_HOST
@@ -75,12 +106,4 @@ if __name__ == "__main__":
 
     branch_id = get_branch_id(api, *REPO_SPEC)
     filepaths = get_branch_filepaths(api, *REPO_SPEC)
-
-    if SUMS_FILE.exists():
-        SUMS_FILE.unlink()
-
-    with open(SUMS_FILE, "w") as f:
-        for filepath in filepaths:
-            content = get_filepath_content(api, owner=REPO_ORG, repo=REPO_NAME, filepath=str(filepath))
-            sha_sum = sha256(content).hexdigest()
-            f.write(f"{filepath}\t{sha_sum}\n")
+    write_sums(filepaths)
