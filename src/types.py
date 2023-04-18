@@ -50,21 +50,11 @@ class FileContent:
         return self.contents["content"]
 
     @property
-    def encoding(self) -> str:
-        return self.contents["encoding"]
-
-    @property
     def bytes(self) -> bytes:
-        if self.encoding != "base64":
-            raise RuntimeError(f"Unexpected encoding: expected 'base64', got {self.encoding}")
-
         return b64decode(self.content)
 
     @property
     def text(self) -> str:
-        if self.encoding != "base64":
-            raise RuntimeError(f"Unexpected encoding: expected 'base64', got {self.encoding}")
-
         return b64decode(self.content).decode()
 
 
