@@ -21,8 +21,7 @@ class RepositoryFileFetcher:
         cksum_file_lock: asyncio.Lock,
     ):
         parent_dir = local_filepath.parent
-        if not parent_dir.exists():
-            parent_dir.mkdir(parents=True)
+        parent_dir.mkdir(parents=True, exist_ok=True)
 
         cksum = sha256(content.bytes).hexdigest()
         async with aiofiles.open(local_filepath, "wb") as f_content:
@@ -51,17 +50,13 @@ class RepositoryFileFetcher:
 
     async def save_contents(self, root_dir: str | Path, cksum_file: str | Path, n_tasks_max: int = 100):
         root_dir = Path(root_dir)
-        if not root_dir.exists():
-            root_dir.mkdir(parents=True)
-
         cksum_file = Path(cksum_file)
-        if cksum_file.exists():
-            cksum_file.unlink()
+        cksum_file.unlink(missing_ok=True)
+
+        tree = await self.api.get_branch_tree()
 
         n_tasks_sem = asyncio.Semaphore(n_tasks_max)
         cksum_file_lock = asyncio.Lock()
-        tree = await self.api.get_branch_tree()
-
         tasks = (
             self.save_file_content(entry.path, root_dir, cksum_file, cksum_file_lock, n_tasks_sem)
             for entry in tree.files
