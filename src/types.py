@@ -15,14 +15,6 @@ class GitEntry:
     def is_file(self) -> bool:
         return self.entry["type"] == "blob"
 
-    @property
-    def is_dir(self) -> bool:
-        return self.entry["type"] == "tree"
-
-    @property
-    def is_commit(self) -> bool:
-        return self.entry["type"] == "commit"
-
 
 class GitTree:
     def __init__(self, raw_tree: dict):
@@ -31,10 +23,6 @@ class GitTree:
     @property
     def entries(self) -> Sequence[GitEntry]:
         return tuple(map(GitEntry, self.tree))
-
-    @property
-    def complete(self) -> bool:
-        return self.tree["page"] == self.tree["total_count"]
 
     @property
     def files(self) -> Sequence[GitEntry]:
@@ -58,7 +46,7 @@ class FileContent:
         return b64decode(self.content).decode()
 
 
-class Branch:
+class GitBranch:
     def __init__(self, raw_branch: dict):
         self.branch = raw_branch
 
