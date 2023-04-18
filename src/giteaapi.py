@@ -1,5 +1,6 @@
 from base64 import b64decode
-from collections.abc import Sequence
+from typing import Sequence
+from pathlib import Path
 
 import aiohttp
 import requests
@@ -10,8 +11,8 @@ class GitEntry:
         self.entry = raw_gitentry
 
     @property
-    def path(self) -> str:
-        return self.entry["path"]
+    def path(self) -> Path:
+        return Path(self.entry["path"])
 
     @property
     def is_file(self) -> bool:
@@ -28,7 +29,7 @@ class GitEntry:
 
 class GitTree:
     def __init__(self, raw_tree: dict):
-        self.tree = raw_tree
+        self.tree = raw_tree["tree"]
 
     @property
     def entries(self) -> Sequence[GitEntry]:
@@ -54,6 +55,13 @@ class FileContent:
     @property
     def encoding(self) -> str:
         return self.contents["encoding"]
+
+    @property
+    def bytes(self) -> bytes:
+        if self.encoding != "base64":
+            raise RuntimeError(f"Unexpected encoding: expected 'base64', got {self.encoding}")
+
+        return b64decode(self.content)
 
     @property
     def text(self) -> str:
@@ -92,21 +100,22 @@ class GiteaRepositoryApi:
 
         branches = map(Branch, response.json())
         for branch in branches:
-            if branch.name == branch:
+            if branch.name == self.branch:
                 return branch.id
 
         raise ValueError(f"No branch {self.branch} in repository")
 
-    async def get_branch_tree(self, page: int = 1) -> GitTree:
+    async def get_branch_tree(self) -> GitTree:
         branch_id = self.get_branch_id()
-        url = self.base_url + f"/repos/{self.org}/{self.repo}/git/trees/{branch_id}?page={page}"
+        url = self.base_url + f"/repos/{self.org}/{self.repo}/git/trees/{branch_id}?recursive=true"
 
         async with aiohttp.ClientSession() as session, session.get(url) as response:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve branch {self.branch} filepaths")
+
             return GitTree(await response.json())
 
-    async def get_file_content(self, filepath: str) -> FileContent:
+    async def get_file_content(self, filepath: str | Path) -> FileContent:
         url = self.base_url + f"/repos/{self.org}/{self.repo}/contents/{filepath}?ref={self.branch}"
         async with aiohttp.ClientSession() as session, session.get(url) as response:
             return FileContent(await response.json())
