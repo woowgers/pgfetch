@@ -5,7 +5,7 @@ from pathlib import Path
 import aiohttp
 import requests
 
-from .types import Branch, GitTree, FileContent
+from .types import GitBranch, GitTree, FileContent
 
 
 class GiteaRepositoryApi:
@@ -22,7 +22,7 @@ class GiteaRepositoryApi:
         if response.status_code != 200:
             raise RuntimeError(f"Failed to retrieve branch {self.branch}")
 
-        branches = map(Branch, response.json())
+        branches = map(GitBranch, response.json())
         for branch in branches:
             if branch.name == self.branch:
                 return branch.id

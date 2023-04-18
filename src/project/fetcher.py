@@ -5,7 +5,7 @@ import logging
 
 import aiofiles
 
-from giteaapi import FileContent, GiteaRepositoryApi
+from .giteaapi import FileContent, GiteaRepositoryApi
 
 
 class RepositoryFileFetcher:
