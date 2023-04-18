@@ -23,7 +23,7 @@ async def main():
     )
     tmpdir = TemporaryDirectory()
     await fetcher.save_contents(root_dir=tmpdir.name, cksum_file="sha256sums")
-    print(*tuple(os.walk(tmpdir.name)))
+    logging.info(f"{tmpdir.name} contents: " + '\n'.join(map(str, tuple(os.walk(tmpdir.name)))))
 
 
 if __name__ == "__main__":
