@@ -15,6 +15,15 @@ class GitEntry:
     def is_file(self) -> bool:
         return self.entry["type"] == "blob"
 
+    def __str__(self) -> str:
+        return f"{self.path}"
+
+    def __hash__(self) -> int:
+        return hash((self.path, self.is_file))
+
+    def __eq__(self, other: "GitEntry") -> bool:
+        return self.path == other.path and self.is_file == other.is_file
+
 
 class GitTree:
     def __init__(self, raw_tree: dict):
