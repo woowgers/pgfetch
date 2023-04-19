@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests aiohttp pytest pytest-asyncio coverage
+        pip install requests aiohttp aiofiles pytest pytest-asyncio coverage
     - name: Test with pytest
       run: |
         coverage run -m pytest
