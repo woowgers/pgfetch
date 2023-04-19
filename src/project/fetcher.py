@@ -12,7 +12,7 @@ class RepositoryFileFetcher:
     def __init__(self, host: str, org: str, repo: str, branch: str):
         self.api = GiteaRepositoryApi(host=host, org=org, repo=repo, branch=branch)
 
-    async def _write_file(
+    async def _write_file_content_and_cksum(
         self,
         local_filepath: Path,
         remote_filepath: Path,
@@ -29,7 +29,7 @@ class RepositoryFileFetcher:
         async with cksum_file_lock, aiofiles.open(cksum_file, "a") as f_cksum:
             await f_cksum.write(f"{remote_filepath}\t{cksum}\n")
 
-    async def save_file_content(
+    async def save_file_to_local_dir(
         self,
         filepath: Path,
         root_dir: Path,
@@ -41,7 +41,7 @@ class RepositoryFileFetcher:
             logging.info(f"saving {filepath}...")
             local_filepath = root_dir / filepath
             content = await self.api.get_file_content(filepath)
-            await self._write_file(local_filepath, filepath, content, cksum_file, cksum_file_lock)
+            await self._write_file_content_and_cksum(local_filepath, filepath, content, cksum_file, cksum_file_lock)
             logging.info(f"{filepath} saved")
 
     async def save_contents(self, root_dir: str | Path, cksum_file: str | Path, n_tasks_max: int = 100):
@@ -54,7 +54,7 @@ class RepositoryFileFetcher:
         n_tasks_sem = asyncio.Semaphore(n_tasks_max)
         cksum_file_lock = asyncio.Lock()
         tasks = (
-            self.save_file_content(entry.path, root_dir, cksum_file, cksum_file_lock, n_tasks_sem)
+            self.save_file_to_local_dir(entry.path, root_dir, cksum_file, cksum_file_lock, n_tasks_sem)
             for entry in tree.files
         )
         await asyncio.gather(*tasks)
