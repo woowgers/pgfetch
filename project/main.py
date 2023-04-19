@@ -18,12 +18,16 @@ def configure_logging():
 
 
 async def main():
+    cksum_file = "sha256sums"
+
     fetcher = RepositoryFileFetcher(
         host="gitea.radium.group", org="radium", repo="project-configuration", branch="master"
     )
     tmpdir = TemporaryDirectory()
-    await fetcher.save_contents(root_dir=tmpdir.name, cksum_file="sha256sums")
-    logging.info(f"{tmpdir.name} contents: " + '\n'.join(map(str, tuple(os.walk(tmpdir.name)))))
+    await fetcher.save_contents(root_dir=tmpdir.name, cksum_file=cksum_file)
+
+    logging.info(f"saved checksums to {cksum_file}")
+    logging.info(f"{tmpdir.name} content: " +  "\n".join(map(str, os.walk(tmpdir.name))))
 
 
 if __name__ == "__main__":
