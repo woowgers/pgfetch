@@ -2,3 +2,5 @@
 
 nitpick
 pytest
+pytest-asyncio
+coverage
