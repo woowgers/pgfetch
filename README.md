@@ -9,5 +9,4 @@
 
 ## Использованные источники:
 - [nitpick docs](https://nitpick.readthedocs.io/en/latest/index.html)
-- [giteapy docs](https://pypi.org/project/giteapy/)
 - [repository api](https://gitea.radium.group/api/swagger#/repository)
