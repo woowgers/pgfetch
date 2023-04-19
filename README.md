@@ -10,3 +10,5 @@
 ## Использованные источники:
 - [nitpick docs](https://nitpick.readthedocs.io/en/latest/index.html)
 - [repository api](https://gitea.radium.group/api/swagger#/repository)
+- [asyncio docs](https://docs.python.org/3/library/asyncio.html)
+- [aiohttp docs](https://docs.aiohttp.org/en/stable/)
