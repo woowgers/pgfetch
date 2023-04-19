@@ -72,10 +72,8 @@ def cksum_file_expected_content(expected_file_entry: GitEntry, expected_content:
 
 class TestWriteFileContentAndCksum:
     @pytest.mark.asyncio
-    async def test_writes_file_with_expected_content(
-        self, fetcher: RepositoryFileFetcher, expected_tree: GitTree, expected_content: FileContent
-    ):
-        with patch("GiteaRepositoryApi.get_branch_tree") as get_branch_tree:
+    async def test_writes_file_with_expected_content(self,  expected_tree: GitTree):
+        with patch("project.giteaapi.GiteaRepositoryApi.get_branch_tree") as get_branch_tree:
             get_branch_tree.return_value = expected_tree
             ...
 
@@ -92,15 +90,12 @@ class TestSaveFileToLocalDir:
 
 class TestSaveContents:
     @pytest.mark.asyncio
-    async def test_rewrites_cksums_file_if_exists(
-        self, cksum_file_initial_content: str, cksum_file_expected_content: str, cksum_file: str
-    ):
+    async def test_rewrites_cksums_file_if_exists(self):
         with (
-            patch("GiteaRepositoryApi.get_branch_tree") as get_branch_tree,
-            patch("RepositoryFileFetcher.save_file_content") as save_file_content,
+            patch("project.giteaapi.GiteaRepositoryApi.get_branch_tree") as get_branch_tree,
+            patch("project.fetcher.RepositoryFileFetcher.save_file_to_local_dir") as save_file,
         ):
-            get_branch_tree.return_value = GitTree({})
-            save_file_content.return_value = None
+            ...
 
     @pytest.mark.asyncio
     async def test_saves_content(self):
