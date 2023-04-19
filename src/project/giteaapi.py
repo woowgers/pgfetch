@@ -1,11 +1,9 @@
-from base64 import b64decode
-from typing import Sequence
 from pathlib import Path
 
 import aiohttp
 import requests
 
-from .types import GitBranch, GitTree, FileContent
+from project.types import FileContent, GitBranch, GitTree
 
 
 class GiteaRepositoryApi:
@@ -41,6 +39,7 @@ class GiteaRepositoryApi:
 
     async def get_file_content(self, filepath: str | Path) -> FileContent:
         url = self.base_url + f"/repos/{self.org}/{self.repo}/contents/{filepath}?ref={self.branch}"
+
         async with aiohttp.ClientSession() as session, session.get(url) as response:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve file {filepath}")

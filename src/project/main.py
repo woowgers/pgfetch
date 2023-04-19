@@ -4,7 +4,7 @@ import os
 import sys
 from tempfile import TemporaryDirectory
 
-from .fetcher import RepositoryFileFetcher
+from project.fetcher import RepositoryFileFetcher
 
 
 def configure_logging():

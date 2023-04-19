@@ -15,9 +15,6 @@ class GitEntry:
     def is_file(self) -> bool:
         return self.entry["type"] == "blob"
 
-    def __str__(self) -> str:
-        return f"{self.path}"
-
     def __hash__(self) -> int:
         return hash((self.path, self.is_file))
 
@@ -37,14 +34,17 @@ class GitTree:
     def files(self) -> Sequence[GitEntry]:
         return tuple(entry for entry in self.entries if entry.is_file)
 
+    def __eq__(self, other: "GitTree") -> bool:
+        return self.tree == other.tree
+
 
 class FileContent:
     def __init__(self, raw_contents_response: dict):
-        self.contents = raw_contents_response
+        self._content = raw_contents_response
 
     @property
     def content(self) -> bytes:
-        return self.contents["content"]
+        return self._content["content"]
 
     @property
     def bytes(self) -> bytes:
@@ -53,6 +53,9 @@ class FileContent:
     @property
     def text(self) -> str:
         return b64decode(self.content).decode()
+
+    def __eq__(self, other: "FileContent") -> bool:
+        return self.content == other.content
 
 
 class GitBranch:
