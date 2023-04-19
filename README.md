@@ -1,4 +1,4 @@
-[![cov](https://woowgers.github.io/radium_assessment_task/badges/coverage.svg)](https://github.com/woowgers/radium_assessment_task/actions)
+![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/woowgers/<gist_id>/raw/radium_assessment_task__pull_##.json)
 
 # Тестовое задание по вакансии "Python Backend Developer" компании "Radium"
 ## Требования задания:
