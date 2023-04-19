@@ -4,3 +4,4 @@ nitpick
 pytest
 pytest-asyncio
 coverage
+coveralls
