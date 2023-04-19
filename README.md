@@ -1,3 +1,5 @@
+[![cov](https://woowgers.github.io/radium_assessment_task/badges/coverage.svg)](https://github.com/woowgers/radium_assessment_task/actions)
+
 # Тестовое задание по вакансии "Python Backend Developer" компании "Radium"
 ## Требования задания:
 - Напишите скрипт, асинхронно, в 3 одновременных задачи, скачивающий содержимое HEAD репозитория https://gitea.radium.group/radium/project-configuration во временную папку.
