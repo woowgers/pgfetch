@@ -1,4 +1,4 @@
-![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/woowgers/<gist_id>/raw/radium_assessment_task__pull_##.json)
+[![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/woowgers/868d6a62a68d261d8e26d2d20808090d/raw/radium_assessment_task__heads_main.json)]
 
 # Тестовое задание по вакансии "Python Backend Developer" компании "Radium"
 ## Требования задания:
