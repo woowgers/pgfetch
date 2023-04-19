@@ -34,4 +34,4 @@ jobs:
       run: |
         coverage run -m pytest
         coverage json
-        coveralls
+        coveralls --service=github
