@@ -37,16 +37,12 @@ class RepositoryFileFetcher:
         cksum_file_lock: asyncio.Lock,
         n_tasks_sem: asyncio.Semaphore,
     ):
-        await n_tasks_sem.acquire()
-        logging.info(f"saving {filepath}...")
-
-        local_filepath = root_dir / filepath
-
-        content = await self.api.get_file_content(filepath)
-        await self._write_file(local_filepath, filepath, content, cksum_file, cksum_file_lock)
-
-        logging.info(f"{filepath} saved")
-        n_tasks_sem.release()
+        async with n_tasks_sem:
+            logging.info(f"saving {filepath}...")
+            local_filepath = root_dir / filepath
+            content = await self.api.get_file_content(filepath)
+            await self._write_file(local_filepath, filepath, content, cksum_file, cksum_file_lock)
+            logging.info(f"{filepath} saved")
 
     async def save_contents(self, root_dir: str | Path, cksum_file: str | Path, n_tasks_max: int = 100):
         root_dir = Path(root_dir)
