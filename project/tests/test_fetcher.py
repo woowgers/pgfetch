@@ -1,12 +1,13 @@
 import asyncio
+import random
 from base64 import b64encode
 from hashlib import sha256
 from pathlib import Path
-from unittest.mock import patch
+from typing import Coroutine
+from unittest.mock import call, patch
 
 import pytest
 
-from project.giteaapi import GiteaRepositoryApi
 from project.types import FileContent, GitEntry, GitTree
 
 from ..fetcher import RepositoryFileFetcher
@@ -24,7 +25,7 @@ def root_dir() -> Path:
 
 @pytest.fixture
 def expected_raw_file_entry() -> dict:
-    return {"path": "/path/to/file", "type": "blob"}
+    return {"path": "path/to/file", "type": "blob"}
 
 
 @pytest.fixture
@@ -42,12 +43,16 @@ def expected_raw_tree(expected_raw_file_entry: dict) -> dict:
     }
 
 
-CONTENT = b64encode("some content".encode()).decode()
+REMOTE_FILEPATH = Path("path/to/file")
+INITIAL_CONTENT = "some initial content, which is cksums"
+CONTENT_TEXT = "some content"
+CONTENT_BYTES = CONTENT_TEXT.encode()
+CONTENT_B64 = b64encode(CONTENT_BYTES).decode()
 
 
 @pytest.fixture
 def expected_raw_content() -> dict:
-    return {"content": CONTENT}
+    return {"content": CONTENT_B64}
 
 
 @pytest.fixture
@@ -59,44 +64,127 @@ def expected_content(expected_raw_content: dict) -> FileContent:
 def expected_tree(expected_raw_tree: dict) -> GitTree:
     return GitTree(expected_raw_tree)
 
-@pytest.fixture
-def cksum_file_initial_content() -> str:
-    return f"initial content"
-
 
 @pytest.fixture
 def cksum_file_expected_content(expected_file_entry: GitEntry, expected_content: FileContent) -> str:
     cksum = sha256(expected_content.bytes).hexdigest()
-    return f"{expected_file_entry.path}\t{cksum}"
+    return f"{expected_file_entry.path}\t{cksum}\n"
 
 
-class TestWriteFileContentAndCksum:
+class TestWriteFileContent:
     @pytest.mark.asyncio
-    async def test_writes_file_with_expected_content(self,  expected_tree: GitTree):
-        with patch("project.giteaapi.GiteaRepositoryApi.get_branch_tree") as get_branch_tree:
-            get_branch_tree.return_value = expected_tree
-            ...
+    async def test_writes_file_with_expected_content(
+        self, fetcher: RepositoryFileFetcher, tmp_path: Path, expected_file_entry: GitEntry
+    ):
+        local_filepath = tmp_path / expected_file_entry.path
+        await fetcher._write_file_content(local_filepath, CONTENT_BYTES)
+        assert local_filepath.read_text() == CONTENT_TEXT
 
     @pytest.mark.asyncio
-    async def test_writes_cksum_in_expected_format(self):
-        ...
+    async def test_rewrites_file_if_exists(
+        self, fetcher: RepositoryFileFetcher, tmp_path: Path, expected_file_entry: GitEntry
+    ):
+        local_filepath = tmp_path / expected_file_entry.path
+        local_filepath.parent.mkdir(parents=True, exist_ok=True)
+        local_filepath.write_text("some unexpected content")
+        await fetcher._write_file_content(local_filepath, CONTENT_BYTES)
+        assert local_filepath.read_text() == CONTENT_TEXT
+
+
+class TestWriteFileCksum:
+    @pytest.mark.asyncio
+    async def test_craetes_cksum_file_if_doesnt_exist(
+        self, fetcher: RepositoryFileFetcher, expected_file_entry: GitEntry, tmp_path: Path
+    ):
+        cksum_file = tmp_path / "sha256sums"
+        await fetcher._write_file_cksum(expected_file_entry.path, CONTENT_BYTES, cksum_file, asyncio.Lock())
+        assert cksum_file.exists()
+
+    @pytest.mark.asyncio
+    async def test_writes_cksum_in_expected_format(
+        self,
+        fetcher: RepositoryFileFetcher,
+        expected_file_entry: GitEntry,
+        tmp_path: Path,
+        cksum_file_expected_content: str,
+    ):
+        cksum_file = tmp_path / "sha256sums"
+        await fetcher._write_file_cksum(expected_file_entry.path, CONTENT_BYTES, cksum_file, asyncio.Lock())
+        assert cksum_file.read_text() == cksum_file_expected_content
+
+    @pytest.mark.asyncio
+    async def test_appends_cksum_after_existing_content(
+        self,
+        fetcher: RepositoryFileFetcher,
+        expected_file_entry: GitEntry,
+        tmp_path: Path,
+        cksum_file_expected_content: str,
+    ):
+        cksum_file = tmp_path / "sha256sums"
+        cksum_file.write_text(INITIAL_CONTENT)
+        await fetcher._write_file_cksum(expected_file_entry.path, CONTENT_BYTES, cksum_file, asyncio.Lock())
+        assert cksum_file.read_text() == INITIAL_CONTENT + cksum_file_expected_content
 
 
 class TestSaveFileToLocalDir:
     @pytest.mark.asyncio
-    async def test_saves_file_to_local_dir(self):
-        ...
+    async def test_calls_write_content_and_write_cksum_with_expected_arguments(
+        self,
+        fetcher: RepositoryFileFetcher,
+        expected_content: FileContent,
+        tmp_path: Path,
+        expected_file_entry: GitEntry,
+    ):
+        with (
+            patch("project.giteaapi.GiteaRepositoryApi.get_file_content") as get_file_content,
+            patch("project.fetcher.RepositoryFileFetcher._write_file_cksum") as write_file_cksum,
+            patch("project.fetcher.RepositoryFileFetcher._write_file_content") as write_file_content,
+        ):
+            get_file_content.return_value = expected_content
+            local_filepath = tmp_path / expected_file_entry.path
+            cksum_file = Path("sha256sums")
+            lock = asyncio.Lock()
+            sem = asyncio.Semaphore()
+            await fetcher.save_file_to_local_dir(expected_file_entry.path, tmp_path, cksum_file, lock, sem)
+            assert write_file_cksum.call_args == call(expected_file_entry.path, CONTENT_BYTES, cksum_file, lock)
+            assert write_file_content.call_args == call(local_filepath, CONTENT_BYTES)
 
 
 class TestSaveContents:
+    @patch("asyncio.gather")
+    def gather(self, *args):
+        return args
+
+    # @pytest.mark.asyncio
+    # async def test_constructs_tasks_with_expected_arguments(self, fetcher: RepositoryFileFetcher, expected_tree: GitTree, root_dir: Path):
+    #     with patch("project.giteaapi.GiteaRepositoryApi.get_branch_tree") as get_branch_tree:
+    #         get_branch_tree.return_value = expected_tree
+    #         n_tasks_max = random.randint(0, 1000)
+    #         lock = asyncio.Lock()
+    #         sem = asyncio.Semaphore(n_tasks_max)
+    #         expected_tasks = (None for entry in expected_tree.files)
+    #         cksum_file = "sha256sums"
+    #         await fetcher.save_contents(root_dir, cksum_file)
+    #         assert self.gather.call_args == call(*expected_tasks)
+
+
+class TestContstructTaks:
+    @patch("project.fetcher.RepositoryFileFetcher._construct_tasks")
+    def construct_tasks(self, *args) -> tuple:
+        return args
+
+    @patch("project.fetcher.RepositoryFileFetcher.save_file_to_local_dir")
     @pytest.mark.asyncio
-    async def test_rewrites_cksums_file_if_exists(self):
-        with (
-            patch("project.giteaapi.GiteaRepositoryApi.get_branch_tree") as get_branch_tree,
-            patch("project.fetcher.RepositoryFileFetcher.save_file_to_local_dir") as save_file,
-        ):
-            ...
+    async def save_file_to_local_dir(self, *args) -> tuple:
+        return args
 
     @pytest.mark.asyncio
-    async def test_saves_content(self):
-        ...
+    def test_calls_construct_tasks_with_expected_arguments(self, fetcher: RepositoryFileFetcher, expected_tree: GitTree, root_dir: Path):
+        cksum_file = Path("sha256sums")
+        lock = asyncio.Lock()
+        sem = asyncio.Semaphore(random.randint(0, 1000))
+        tasks = fetcher._construct_tasks(expected_tree, root_dir, cksum_file, lock, sem)
+        expected_tasks = tuple(self.save_file_to_local_dir(entry.path, root_dir, cksum_file, lock, sem) for entry in expected_tree.files)
+        cksum_file = Path("sha256sums")
+        fetcher._construct_tasks(expected_tree, root_dir, cksum_file, lock, sem)
+        assert tasks == expected_tasks
