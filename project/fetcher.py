@@ -15,8 +15,8 @@ class RepositoryFileFetcher:
 
     async def _write_file_content(self, local_filepath: Path, content: bytes) -> None:
         local_filepath.parent.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(local_filepath, "wb") as f_content:
-            await f_content.write(content)
+        async with aiofiles.open(local_filepath, "wb") as f:
+            await f.write(content)
 
     async def _fetch_file(self, root_dir: str | Path, filepath: Path, n_tasks_sem: asyncio.Semaphore) -> None:
         async with n_tasks_sem:
