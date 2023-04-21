@@ -2,17 +2,16 @@ import asyncio
 from asyncio.tasks import Task
 import logging
 from pathlib import Path
-from typing import Coroutine
 
 import aiofiles
 
-from project.giteaapi import GiteaRepositoryApi
+from project.giteaapi import GiteaRepositoryBranchApi
 from project.types import GitTree
 
 
 class RepositoryFileFetcher:
     def __init__(self, host: str, org: str, repo: str, branch: str):
-        self.api = GiteaRepositoryApi(host=host, org=org, repo=repo, branch=branch)
+        self.api = GiteaRepositoryBranchApi(host=host, org=org, repo=repo, branch=branch)
 
     async def _write_file_content(self, local_filepath: Path, content: bytes) -> None:
         local_filepath.parent.mkdir(parents=True, exist_ok=True)

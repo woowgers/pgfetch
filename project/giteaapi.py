@@ -6,7 +6,7 @@ import requests
 from project.types import FileContent, GitBranch, GitTree
 
 
-class GiteaRepositoryApi:
+class GiteaRepositoryBranchApi:
     def __init__(self, host: str, org: str, repo: str, branch: str):
         self.base_url: str = f"https://{host}/api/v1"
         self.repo: str = repo

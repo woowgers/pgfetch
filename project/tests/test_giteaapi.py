@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from project.giteaapi import GiteaRepositoryApi
+from project.giteaapi import GiteaRepositoryBranchApi
 from project.types import FileContent, GitBranch, GitTree
 
 pytest_plugins = "pytest_asyncio"
@@ -43,8 +43,8 @@ class MockAsyncResponse:
 
 
 @pytest.fixture
-def api() -> GiteaRepositoryApi:
-    return GiteaRepositoryApi("host", "org", "repo", "master")
+def api() -> GiteaRepositoryBranchApi:
+    return GiteaRepositoryBranchApi("host", "org", "repo", "master")
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ class TestGetBranchIdSync:
         return RuntimeError(f"No branch {expected_branch.name} in repository")
 
     def test_raises_runtimeerror_if_response_status_not_200(
-        self, api: GiteaRepositoryApi, raw_branches: JSON, expected_runtimeerror: RuntimeError
+        self, api: GiteaRepositoryBranchApi, raw_branches: JSON, expected_runtimeerror: RuntimeError
     ):
         with patch("requests.get") as get:
             get.return_value = MockResponse(404, raw_branches)
@@ -116,7 +116,7 @@ class TestGetBranchIdSync:
             assert str(error.value) == str(expected_runtimeerror)
 
     def test_raises_valueerror_if_branch_not_in_repo(
-        self, api: GiteaRepositoryApi, raw_branches_without_expected_branch: dict, expected_valueerror: ValueError
+        self, api: GiteaRepositoryBranchApi, raw_branches_without_expected_branch: dict, expected_valueerror: ValueError
     ):
         with patch("requests.get") as get:
             get.return_value = MockResponse(200, raw_branches_without_expected_branch)
@@ -126,7 +126,7 @@ class TestGetBranchIdSync:
 
             assert str(error.value) == str(expected_valueerror)
 
-    def test_returns_id(self, api: GiteaRepositoryApi, raw_branches: JSON, expected_branch: GitBranch):
+    def test_returns_id(self, api: GiteaRepositoryBranchApi, raw_branches: JSON, expected_branch: GitBranch):
         with patch("requests.get") as get:
             get.return_value = MockResponse(200, raw_branches)
             branch_id = api.get_branch_id_sync()
@@ -140,7 +140,7 @@ class TestGetBranchTree:
 
     @pytest.mark.asyncio
     async def test_raises_runtimeerror_if_response_status_not_200(
-        self, api: GiteaRepositoryApi, expected_runtimeerror: RuntimeError, expected_branch: GitBranch
+        self, api: GiteaRepositoryBranchApi, expected_runtimeerror: RuntimeError, expected_branch: GitBranch
     ):
         with (
             patch("project.giteaapi.GiteaRepositoryApi.get_branch_id_sync") as branch_id,
@@ -157,7 +157,7 @@ class TestGetBranchTree:
 
     @pytest.mark.asyncio
     async def test_returns_expected_tree(
-        self, api: GiteaRepositoryApi, expected_branch: GitBranch, expected_raw_tree: dict, expected_tree: GitTree
+        self, api: GiteaRepositoryBranchApi, expected_branch: GitBranch, expected_raw_tree: dict, expected_tree: GitTree
     ):
         with (
             patch("project.giteaapi.GiteaRepositoryApi.get_branch_id_sync") as branch_id,
@@ -176,7 +176,7 @@ class TestGetFileContent:
 
     @pytest.mark.asyncio
     async def test_raises_runtimeerror_if_response_status_not_200(
-        self, api: GiteaRepositoryApi, expected_filepath: Path, expected_runtimeerror: RuntimeError
+        self, api: GiteaRepositoryBranchApi, expected_filepath: Path, expected_runtimeerror: RuntimeError
     ):
         with patch("aiohttp.ClientSession.get") as get:
             get.return_value = MockAsyncResponse(404)
@@ -185,7 +185,7 @@ class TestGetFileContent:
             assert str(error.value) == str(expected_runtimeerror)
 
     @pytest.mark.asyncio
-    async def test_returns_expected_content(self, api: GiteaRepositoryApi, expected_raw_content: JSON, expected_content: FileContent):
+    async def test_returns_expected_content(self, api: GiteaRepositoryBranchApi, expected_raw_content: JSON, expected_content: FileContent):
         with patch("aiohttp.ClientSession.get") as get:
             get.return_value = MockAsyncResponse(200, expected_raw_content)
             content = await api.get_file_content('filename')
