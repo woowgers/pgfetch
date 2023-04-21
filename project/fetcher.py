@@ -1,4 +1,5 @@
 import asyncio
+from asyncio.tasks import Task
 import logging
 from pathlib import Path
 from typing import Coroutine
@@ -26,8 +27,8 @@ class RepositoryFileFetcher:
             await self._write_file_content(local_filepath, content.bytes)
             logging.info(f"{filepath} saved")
 
-    def _construct_tasks(self, tree: GitTree, root_dir: Path, n_tasks_sem: asyncio.Semaphore) -> tuple[Coroutine]:
-        return tuple(self._fetch_file(entry.path, root_dir, n_tasks_sem) for entry in tree.files)
+    def _construct_tasks(self, tree: GitTree, root_dir: Path, n_tasks_sem: asyncio.Semaphore) -> tuple[Task, ...]:
+        return tuple(asyncio.create_task(self._fetch_file(entry.path, root_dir, n_tasks_sem)) for entry in tree.files)
 
     async def fetch_files(self, root_dir: str, n_tasks_max: int = 100) -> None:
         if n_tasks_max <= 0:
@@ -35,4 +36,5 @@ class RepositoryFileFetcher:
 
         tree = await self.api.get_branch_tree()
         n_tasks_sem = asyncio.Semaphore(n_tasks_max)
-        await asyncio.gather(*self._construct_tasks(tree, Path(root_dir), n_tasks_sem))
+        async with asyncio.TaskGroup() as g:
+            g.create_task(self._fetch_file(entry.path, Path(root_dir), n_tasks_sem) for entry in tree.files)
