@@ -37,4 +37,4 @@ class RepositoryFileFetcher:
         tree = await self.api.get_branch_tree()
         n_tasks_sem = asyncio.Semaphore(n_tasks_max)
         async with asyncio.TaskGroup() as g:
-            g.create_task(self._fetch_file(entry.path, Path(root_dir), n_tasks_sem) for entry in tree.files)
+            g.create_task(self._fetch_file(root_dir, entry.path, n_tasks_sem) for entry in tree.files)
