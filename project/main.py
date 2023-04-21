@@ -24,7 +24,7 @@ async def main():
         host="gitea.radium.group", org="radium", repo="project-configuration", branch="master"
     )
     tmpdir = TemporaryDirectory()
-    await fetcher.save_contents(root_dir=tmpdir.name, cksum_file=cksum_file)
+    await fetcher.fetch_files(root_dir=tmpdir.name)
 
     logging.info(f"saved checksums to {cksum_file}")
     logging.info(f"{tmpdir.name} content: " +  "\n".join(map(str, os.walk(tmpdir.name))))
