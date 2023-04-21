@@ -1,71 +1,38 @@
 from pathlib import Path
-from typing import Sequence
-from base64 import b64decode
+from typing import Sequence, Self
+
+from dataclasses import dataclass
 
 
+@dataclass
+class GitBranch:
+    name: str
+    id: str
+
+    @classmethod
+    def parse_from_raw_gitbranch(cls, raw_branch) -> Self:
+        return GitBranch(raw_branch["name"], raw_branch["commit"]["id"])
+
+
+@dataclass
 class GitEntry:
-    def __init__(self, raw_gitentry: dict):
-        self.entry = raw_gitentry
+    path: Path
+    is_file: bool
 
-    @property
-    def path(self) -> Path:
-        return Path(self.entry["path"])
-
-    @property
-    def is_file(self) -> bool:
-        return self.entry["type"] == "blob"
-
-    def __hash__(self) -> int:
-        return hash((self.path, self.is_file))
-
-    def __eq__(self, other: "GitEntry") -> bool:
-        return self.path == other.path and self.is_file == other.is_file
+    @classmethod
+    def parse_from_raw_gitentry(cls, raw_entry: dict) -> Self:
+        return GitEntry(raw_entry["path"], raw_entry["type"] == "blob")
 
 
+@dataclass
 class GitTree:
-    def __init__(self, raw_tree: dict):
-        self.tree = raw_tree["tree"]
-
-    @property
-    def entries(self) -> Sequence[GitEntry]:
-        return tuple(map(GitEntry, self.tree))
+    entries: tuple[GitEntry, ...]
 
     @property
     def files(self) -> Sequence[GitEntry]:
         return tuple(entry for entry in self.entries if entry.is_file)
 
-    def __eq__(self, other: "GitTree") -> bool:
-        return self.tree == other.tree
-
-
-class FileContent:
-    def __init__(self, raw_contents_response: dict):
-        self._content = raw_contents_response
-
-    @property
-    def content(self) -> bytes:
-        return self._content["content"]
-
-    @property
-    def bytes(self) -> bytes:
-        return b64decode(self.content)
-
-    @property
-    def text(self) -> str:
-        return b64decode(self.content).decode()
-
-    def __eq__(self, other: "FileContent") -> bool:
-        return self.content == other.content
-
-
-class GitBranch:
-    def __init__(self, raw_branch: dict):
-        self.branch = raw_branch
-
-    @property
-    def name(self) -> str:
-        return self.branch["name"]
-
-    @property
-    def id(self) -> str:
-        return self.branch["commit"]["id"]
+    @classmethod
+    def parse_from_raw_gittree(cls, raw_tree: dict) -> Self:
+        entries = tuple(GitEntry.parse_from_raw_gitentry(raw_entry) for raw_entry in raw_tree["tree"])
+        return GitTree(entries)
