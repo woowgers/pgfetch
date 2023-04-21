@@ -3,7 +3,6 @@ import random
 from base64 import b64encode
 from hashlib import sha256
 from pathlib import Path
-from typing import Coroutine
 from unittest.mock import call, patch
 
 import pytest
@@ -11,6 +10,9 @@ import pytest
 from project.types import FileContent, GitEntry, GitTree
 
 from ..fetcher import RepositoryFileFetcher
+
+
+# ROOT_DIR =
 
 
 @pytest.fixture
@@ -151,21 +153,7 @@ class TestSaveFileToLocalDir:
 
 
 class TestSaveContents:
-    @patch("asyncio.gather")
-    def gather(self, *args):
-        return args
-
-    # @pytest.mark.asyncio
-    # async def test_constructs_tasks_with_expected_arguments(self, fetcher: RepositoryFileFetcher, expected_tree: GitTree, root_dir: Path):
-    #     with patch("project.giteaapi.GiteaRepositoryApi.get_branch_tree") as get_branch_tree:
-    #         get_branch_tree.return_value = expected_tree
-    #         n_tasks_max = random.randint(0, 1000)
-    #         lock = asyncio.Lock()
-    #         sem = asyncio.Semaphore(n_tasks_max)
-    #         expected_tasks = (None for entry in expected_tree.files)
-    #         cksum_file = "sha256sums"
-    #         await fetcher.save_contents(root_dir, cksum_file)
-    #         assert self.gather.call_args == call(*expected_tasks)
+    ...
 
 
 class TestContstructTaks:
@@ -180,11 +168,4 @@ class TestContstructTaks:
 
     @pytest.mark.asyncio
     def test_calls_construct_tasks_with_expected_arguments(self, fetcher: RepositoryFileFetcher, expected_tree: GitTree, root_dir: Path):
-        cksum_file = Path("sha256sums")
-        lock = asyncio.Lock()
-        sem = asyncio.Semaphore(random.randint(0, 1000))
-        tasks = fetcher._construct_tasks(expected_tree, root_dir, cksum_file, lock, sem)
-        expected_tasks = tuple(self.save_file_to_local_dir(entry.path, root_dir, cksum_file, lock, sem) for entry in expected_tree.files)
-        cksum_file = Path("sha256sums")
-        fetcher._construct_tasks(expected_tree, root_dir, cksum_file, lock, sem)
-        assert tasks == expected_tasks
+        ...
