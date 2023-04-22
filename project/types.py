@@ -10,7 +10,7 @@ class GitBranch:
     id: str
 
     @classmethod
-    def parse_from_raw_gitbranch(cls, raw_branch) -> Self:
+    def parse_from_raw(cls, raw_branch) -> Self:
         return GitBranch(raw_branch["name"], raw_branch["commit"]["id"])
 
 
@@ -20,7 +20,7 @@ class GitEntry:
     is_file: bool
 
     @classmethod
-    def parse_from_raw_gitentry(cls, raw_entry: dict) -> Self:
+    def parse_from_raw(cls, raw_entry: dict) -> Self:
         return GitEntry(raw_entry["path"], raw_entry["type"] == "blob")
 
 
@@ -33,6 +33,6 @@ class GitTree:
         return tuple(entry for entry in self.entries if entry.is_file)
 
     @classmethod
-    def parse_from_raw_gittree(cls, raw_tree: dict) -> Self:
-        entries = tuple(GitEntry.parse_from_raw_gitentry(raw_entry) for raw_entry in raw_tree["tree"])
+    def parse_from_raw(cls, raw_tree: dict) -> Self:
+        entries = tuple(GitEntry.parse_from_raw(raw_entry) for raw_entry in raw_tree["tree"])
         return GitTree(entries)

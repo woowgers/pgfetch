@@ -1,9 +1,12 @@
+from base64 import b64decode
+from http import HTTPStatus
 from pathlib import Path
+from typing import Self, Sequence
 
 import aiohttp
 import requests
 
-from project.types import FileContent, GitBranch, GitTree
+from project.types import GitBranch, GitTree
 
 
 class GiteaRepositoryBranchApi:
@@ -12,36 +15,58 @@ class GiteaRepositoryBranchApi:
         self.repo: str = repo
         self.org: str = org
         self.branch: str = branch
+        self.session = aiohttp.ClientSession()
 
-    def get_branch_id_sync(self) -> str:
-        url = self.base_url + f"/repos/{self.org}/{self.repo}/branches"
+    async def __aenter__(self) -> Self:
+        return self
 
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise RuntimeError(f"Failed to retrieve branch {self.branch}")
+    async def __aexit__(self, *_) -> None:
+        await self.session.close()
 
-        branches = map(GitBranch, response.json())
+    def _branch_list_url(self) -> str:
+        return self.base_url + f"/repos/{self.org}/{self.repo}/branches"
+
+    def _branch_tree_url(self) -> str:
+        branch_id = self.get_branch_id()
+        return self.base_url + f"/repos/{self.org}/{self.repo}/git/trees/{branch_id}?recursive=true"
+
+    def _file_content_url(self, filepath: Path):
+        return f"{self.base_url}/repos/{self.org}/{self.repo}/contents/{filepath}?ref={self.branch}"
+
+    def get_branch_by_name_or_valueerror(self, branches: Sequence[GitBranch]) -> GitBranch:
         for branch in branches:
             if branch.name == self.branch:
-                return branch.id
+                return branch
 
         raise ValueError(f"No branch {self.branch} in repository")
 
-    async def get_branch_tree(self) -> GitTree:
-        branch_id = self.get_branch_id_sync()
-        url = self.base_url + f"/repos/{self.org}/{self.repo}/git/trees/{branch_id}?recursive=true"
+    def get_branch_id(self) -> str:
+        url = self._branch_list_url()
 
-        async with aiohttp.ClientSession() as session, session.get(url) as response:
+        response = requests.get(url)
+        if response.status_code != HTTPStatus.OK:
+            raise RuntimeError(f"Failed to retrieve branch {self.branch}")
+
+        branches = tuple(GitBranch.parse_from_raw(raw_branch) for raw_branch in response.json())
+        return self.get_branch_by_name_or_valueerror(branches).id
+
+    async def get_branch_tree(self) -> GitTree:
+        url = self._branch_tree_url()
+
+        async with self.session.get(url) as response:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve branch {self.branch} filepaths")
 
             return GitTree(await response.json())
 
-    async def get_file_content(self, filepath: str | Path) -> FileContent:
-        url = self.base_url + f"/repos/{self.org}/{self.repo}/contents/{filepath}?ref={self.branch}"
+    def get_file_text_from_raw_content(self, raw_content: str) -> str:
+        return b64decode(raw_content.encode()).decode()
 
-        async with aiohttp.ClientSession() as session, session.get(url) as response:
+    async def get_file_content(self, filepath: Path) -> str:
+        url = self._file_content_url(filepath)
+
+        async with self.session.get(url) as response:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve file {filepath}")
 
-            return FileContent(await response.json())
+            return self.get_file_text_from_raw_content(await response.json())

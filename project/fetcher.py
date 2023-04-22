@@ -1,35 +1,30 @@
 import asyncio
-from asyncio.tasks import Task
 import logging
 from pathlib import Path
 
 import aiofiles
 
 from project.giteaapi import GiteaRepositoryBranchApi
-from project.types import GitTree
 
 
-class RepositoryFileFetcher:
-    def __init__(self, host: str, org: str, repo: str, branch: str):
-        self.api = GiteaRepositoryBranchApi(host=host, org=org, repo=repo, branch=branch)
+class GiteaRepositoryBranchFetcher:
+    def __init__(self, api: GiteaRepositoryBranchApi):
+        self.api = api
 
-    async def _write_file_content(self, local_filepath: Path, content: bytes) -> None:
+    async def _write_file_content(self, local_filepath: Path, content: str) -> None:
         local_filepath.parent.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(local_filepath, "wb") as f:
+        async with aiofiles.open(local_filepath, "w") as f:
             await f.write(content)
 
-    async def _fetch_file(self, root_dir: str | Path, filepath: Path, n_tasks_sem: asyncio.Semaphore) -> None:
+    async def _fetch_file(self, root_dir: Path, filepath: Path, n_tasks_sem: asyncio.Semaphore) -> None:
         async with n_tasks_sem:
             logging.info(f"saving {filepath}...")
             local_filepath = root_dir / filepath
             content = await self.api.get_file_content(filepath)
-            await self._write_file_content(local_filepath, content.bytes)
+            await self._write_file_content(local_filepath, content)
             logging.info(f"{filepath} saved")
 
-    def _construct_tasks(self, tree: GitTree, root_dir: Path, n_tasks_sem: asyncio.Semaphore) -> tuple[Task, ...]:
-        return tuple(asyncio.create_task(self._fetch_file(entry.path, root_dir, n_tasks_sem)) for entry in tree.files)
-
-    async def fetch_files(self, root_dir: str, n_tasks_max: int = 100) -> None:
+    async def fetch_files(self, root_dir: Path, n_tasks_max: int = 100) -> None:
         if n_tasks_max <= 0:
             raise ValueError(f"`n_tasks_max` must not be negative")
 

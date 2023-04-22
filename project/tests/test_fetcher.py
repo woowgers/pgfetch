@@ -9,15 +9,15 @@ import pytest
 
 from project.types import FileContent, GitEntry, GitTree
 
-from ..fetcher import RepositoryFileFetcher
+from ..fetcher import GiteaRepositoryBranchFetcher
 
 
 # ROOT_DIR =
 
 
 @pytest.fixture
-def fetcher() -> RepositoryFileFetcher:
-    return RepositoryFileFetcher("host", "org", "repo", "branch")
+def fetcher() -> GiteaRepositoryBranchFetcher:
+    return GiteaRepositoryBranchFetcher("host", "org", "repo", "branch")
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def cksum_file_expected_content(expected_file_entry: GitEntry, expected_content:
 class TestWriteFileContent:
     @pytest.mark.asyncio
     async def test_writes_file_with_expected_content(
-        self, fetcher: RepositoryFileFetcher, tmp_path: Path, expected_file_entry: GitEntry
+        self, fetcher: GiteaRepositoryBranchFetcher, tmp_path: Path, expected_file_entry: GitEntry
     ):
         local_filepath = tmp_path / expected_file_entry.path
         await fetcher._write_file_content(local_filepath, CONTENT_BYTES)
@@ -84,7 +84,7 @@ class TestWriteFileContent:
 
     @pytest.mark.asyncio
     async def test_rewrites_file_if_exists(
-        self, fetcher: RepositoryFileFetcher, tmp_path: Path, expected_file_entry: GitEntry
+        self, fetcher: GiteaRepositoryBranchFetcher, tmp_path: Path, expected_file_entry: GitEntry
     ):
         local_filepath = tmp_path / expected_file_entry.path
         local_filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +96,7 @@ class TestWriteFileContent:
 class TestWriteFileCksum:
     @pytest.mark.asyncio
     async def test_craetes_cksum_file_if_doesnt_exist(
-        self, fetcher: RepositoryFileFetcher, expected_file_entry: GitEntry, tmp_path: Path
+        self, fetcher: GiteaRepositoryBranchFetcher, expected_file_entry: GitEntry, tmp_path: Path
     ):
         cksum_file = tmp_path / "sha256sums"
         await fetcher._write_file_cksum(expected_file_entry.path, CONTENT_BYTES, cksum_file, asyncio.Lock())
@@ -105,7 +105,7 @@ class TestWriteFileCksum:
     @pytest.mark.asyncio
     async def test_writes_cksum_in_expected_format(
         self,
-        fetcher: RepositoryFileFetcher,
+        fetcher: GiteaRepositoryBranchFetcher,
         expected_file_entry: GitEntry,
         tmp_path: Path,
         cksum_file_expected_content: str,
@@ -117,7 +117,7 @@ class TestWriteFileCksum:
     @pytest.mark.asyncio
     async def test_appends_cksum_after_existing_content(
         self,
-        fetcher: RepositoryFileFetcher,
+        fetcher: GiteaRepositoryBranchFetcher,
         expected_file_entry: GitEntry,
         tmp_path: Path,
         cksum_file_expected_content: str,
@@ -132,7 +132,7 @@ class TestSaveFileToLocalDir:
     @pytest.mark.asyncio
     async def test_calls_write_content_and_write_cksum_with_expected_arguments(
         self,
-        fetcher: RepositoryFileFetcher,
+        fetcher: GiteaRepositoryBranchFetcher,
         expected_content: FileContent,
         tmp_path: Path,
         expected_file_entry: GitEntry,
@@ -167,5 +167,5 @@ class TestContstructTaks:
         return args
 
     @pytest.mark.asyncio
-    def test_calls_construct_tasks_with_expected_arguments(self, fetcher: RepositoryFileFetcher, expected_tree: GitTree, root_dir: Path):
+    def test_calls_construct_tasks_with_expected_arguments(self, fetcher: GiteaRepositoryBranchFetcher, expected_tree: GitTree, root_dir: Path):
         ...

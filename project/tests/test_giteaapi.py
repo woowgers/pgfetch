@@ -111,7 +111,7 @@ class TestGetBranchIdSync:
             get.return_value = MockResponse(404, raw_branches)
 
             with pytest.raises(RuntimeError) as error:
-                api.get_branch_id_sync()
+                api.get_branch_id()
 
             assert str(error.value) == str(expected_runtimeerror)
 
@@ -122,14 +122,14 @@ class TestGetBranchIdSync:
             get.return_value = MockResponse(200, raw_branches_without_expected_branch)
 
             with pytest.raises(ValueError) as error:
-                api.get_branch_id_sync()
+                api.get_branch_id()
 
             assert str(error.value) == str(expected_valueerror)
 
     def test_returns_id(self, api: GiteaRepositoryBranchApi, raw_branches: JSON, expected_branch: GitBranch):
         with patch("requests.get") as get:
             get.return_value = MockResponse(200, raw_branches)
-            branch_id = api.get_branch_id_sync()
+            branch_id = api.get_branch_id()
             assert branch_id == expected_branch.id
 
 
