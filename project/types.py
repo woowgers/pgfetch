@@ -4,7 +4,7 @@ from typing import Sequence, Self
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class GitBranch:
     name: str
     id: str
@@ -14,7 +14,7 @@ class GitBranch:
         return GitBranch(raw_branch["name"], raw_branch["commit"]["id"])
 
 
-@dataclass
+@dataclass(frozen=True)
 class GitEntry:
     path: Path
     is_file: bool
@@ -24,7 +24,7 @@ class GitEntry:
         return GitEntry(raw_entry["path"], raw_entry["type"] == "blob")
 
 
-@dataclass
+@dataclass(frozen=True)
 class GitTree:
     entries: tuple[GitEntry, ...]
 

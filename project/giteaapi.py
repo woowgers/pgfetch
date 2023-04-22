@@ -1,7 +1,7 @@
 from base64 import b64decode
 from http import HTTPStatus
 from pathlib import Path
-from typing import Self, Sequence
+from typing import Sequence
 
 import aiohttp
 import requests
@@ -15,13 +15,6 @@ class GiteaRepositoryBranchApi:
         self.repo: str = repo
         self.org: str = org
         self.branch: str = branch
-        self.session = aiohttp.ClientSession()
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *_) -> None:
-        await self.session.close()
 
     def _branch_list_url(self) -> str:
         return self.base_url + f"/repos/{self.org}/{self.repo}/branches"
@@ -50,10 +43,10 @@ class GiteaRepositoryBranchApi:
         branches = tuple(GitBranch.parse_from_raw(raw_branch) for raw_branch in response.json())
         return self.get_branch_by_name_or_valueerror(branches).id
 
-    async def get_branch_tree(self) -> GitTree:
+    async def get_branch_tree(self, session: aiohttp.ClientSession) -> GitTree:
         url = self._branch_tree_url()
 
-        async with self.session.get(url) as response:
+        async with session.get(url) as response:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve branch {self.branch} filepaths")
 
@@ -62,10 +55,10 @@ class GiteaRepositoryBranchApi:
     def get_file_text_from_raw_content(self, raw_content: str) -> str:
         return b64decode(raw_content.encode()).decode()
 
-    async def get_file_content(self, filepath: Path) -> str:
+    async def get_file_content(self, session: aiohttp.ClientSession, filepath: Path) -> str:
         url = self._file_content_url(filepath)
 
-        async with self.session.get(url) as response:
+        async with session.get(url) as response:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve file {filepath}")
 
