@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Sequence
 
 from ..types import GitBranch, GitEntry, GitTree
@@ -15,22 +14,17 @@ class TestGitEntry:
         entry = GitEntry.parse_from_raw(raw_file_entry)
         assert entry == file_entry
 
-    def test_is_file_if_file(self, raw_file_entry: dict):
-        entry = GitEntry.parse_from_raw(raw_file_entry)
-        assert entry.is_file == True
+    def test_is_file_if_file(self, file_entry: GitEntry):
+        assert file_entry.is_file == True
 
-    def test_not_is_file_if_not_file(self, raw_dir_entry: dict):
-        entry = GitEntry.parse_from_raw(raw_dir_entry)
-        assert entry.is_file == False
+    def test_not_is_file_if_not_file(self, dir_entry: GitEntry):
+        assert dir_entry.is_file == False
 
 
 class TestGitTree:
-    # def test_parse_from_raw_parses_as_expected(sef, raw_tree: dict, )
+    def test_parse_from_raw_parses_as_expected(self, expected_raw_tree: dict, expected_tree: GitTree):
+        assert GitTree.parse_from_raw(expected_raw_tree) == expected_tree
 
-    def test_entries_returns_all_entries(self, raw_tree: dict, entries: Sequence[GitEntry]):
-        tree = GitTree.parse_from_raw(raw_tree)
-        assert len(tree.entries) == len(entries)
-
-    def test_files_returns_only_file_entries(self, raw_tree: dict, file_entries: Sequence[GitEntry]):
-        tree = GitTree.parse_from_raw(raw_tree)
+    def test_files_returns_only_file_entries(self, expected_raw_tree: dict, file_entries: Sequence[GitEntry]):
+        tree = GitTree.parse_from_raw(expected_raw_tree)
         assert set(tree.files) == set(file_entries)

@@ -40,22 +40,56 @@ def api() -> GiteaRepositoryBranchApi:
 
 
 @pytest.fixture
-@pytest.mark.asyncio
-async def fetcher(api: GiteaRepositoryBranchApi) -> GiteaRepositoryBranchFetcher:
-    ...
+def expected_branches_list_url(api: GiteaRepositoryBranchApi) -> str:
+    base_url = f"https://{api.host}/api/v1"
+    return f"{base_url}/repos/{api.org}/{api.repo}/branches"
 
 
 @pytest.fixture
-def raw_branch() -> dict:
+def raw_branch(api: GiteaRepositoryBranchApi) -> dict:
     return {
-        "name": "master",
+        "name": api.branch,
         "commit": { "id": "fj0239fj2039jf0" }
     }
 
 
 @pytest.fixture
+def raw_unexpected_branch() -> dict:
+    return {
+        "name": "dev",
+        "commit": { "id": "20fj209jf3023j" }
+    }
+
+
+@pytest.fixture
+def raw_branches(raw_branch: dict, raw_unexpected_branch: dict) -> Sequence[dict]:
+    return (raw_branch, raw_unexpected_branch)
+
+
+@pytest.fixture
+def expected_branches(raw_branches: Sequence[dict]) -> Sequence[GitBranch]:
+    return tuple(GitBranch.parse_from_raw(raw_branch) for raw_branch in raw_branches)
+
+
+@pytest.fixture
+def raw_branches_without_expected_branch(raw_unexpected_branch: dict) -> Sequence[dict]:
+    return (raw_unexpected_branch,)
+
+
+@pytest.fixture
+def branches_without_expected_branch(raw_branches_without_expected_branch: Sequence[dict]) -> Sequence[GitBranch]:
+    return tuple(GitBranch.parse_from_raw(raw_branch) for raw_branch in raw_branches_without_expected_branch)
+
+
+@pytest.fixture
 def expected_branch(raw_branch: GitBranch) -> GitBranch:
     return GitBranch.parse_from_raw(raw_branch)
+
+
+@pytest.fixture
+def expected_branch_tree_url(api: GiteaRepositoryBranchApi, expected_branch: GitBranch) -> str:
+    base_url = f"https://{api.host}/api/v1"
+    return f"{base_url}/repos/{api.org}/{api.repo}/git/trees/{expected_branch.id}?recursive=true"
 
 
 @pytest.fixture
@@ -65,16 +99,30 @@ def raw_file_entry() -> dict:
         "type": "blob"
     }
 
+
+@pytest.fixture
+def file_entry(raw_file_entry: dict) -> GitEntry:
+    return GitEntry(path=raw_file_entry["path"], is_file=raw_file_entry["type"] == "blob")
+
+
+@pytest.fixture
+def expected_file_content_url(api: GiteaRepositoryBranchApi, file_entry: GitEntry, expected_branch: GitBranch) -> str:
+    base_url = f"https://{api.host}/api/v1"
+    return f"{base_url}/repos/{api.org}/{api.repo}/contents/{file_entry.path}?ref={expected_branch.name}"
+
+
+@pytest.fixture
+@pytest.mark.asyncio
+async def fetcher(api: GiteaRepositoryBranchApi) -> GiteaRepositoryBranchFetcher:
+    ...
+
+
 @pytest.fixture
 def raw_dir_entry() -> dict:
     return {
         "path": "path/to/directory",
         "type": "tree"
     }
-
-@pytest.fixture
-def file_entry(raw_file_entry: dict) -> GitEntry:
-    return GitEntry(path=raw_file_entry["path"], is_file=raw_file_entry["type"] == "blob")
 
 
 @pytest.fixture
@@ -97,11 +145,11 @@ def entries(raw_entries: Sequence[dict]) -> tuple[GitEntry, ...]:
 
 @pytest.fixture
 def dir_entry(raw_file_entry: dict) -> GitEntry:
-    return GitEntry(path=raw_file_entry["path"], is_file=raw_file_entry["type"] == "blob")
+    return GitEntry.parse_from_raw(raw_file_entry)
 
 
 @pytest.fixture
-def raw_tree(raw_file_entry: dict, raw_dir_entry: dict) -> dict:
+def expected_raw_tree(raw_file_entry: dict, raw_dir_entry: dict) -> dict:
     return {
         "tree": (
             raw_file_entry,
@@ -111,5 +159,5 @@ def raw_tree(raw_file_entry: dict, raw_dir_entry: dict) -> dict:
 
 
 @pytest.fixture
-def expected_tree(file_entry: GitEntry, dir_entry: GitEntry) -> GitTree:
-    return GitTree((file_entry, dir_entry))
+def expected_tree(expected_raw_tree: dict) -> GitTree:
+    return GitTree.parse_from_raw(expected_raw_tree)

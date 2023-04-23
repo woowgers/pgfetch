@@ -12,11 +12,12 @@ from project.types import GitBranch, GitTree
 class GiteaRepositoryBranchApi:
     def __init__(self, host: str, org: str, repo: str, branch: str):
         self.base_url: str = f"https://{host}/api/v1"
+        self.host: str = host
         self.repo: str = repo
         self.org: str = org
         self.branch: str = branch
 
-    def _branch_list_url(self) -> str:
+    def _branches_list_url(self) -> str:
         return self.base_url + f"/repos/{self.org}/{self.repo}/branches"
 
     def _branch_tree_url(self) -> str:
@@ -34,7 +35,7 @@ class GiteaRepositoryBranchApi:
         raise ValueError(f"No branch {self.branch} in repository")
 
     def get_branch_id(self) -> str:
-        url = self._branch_list_url()
+        url = self._branches_list_url()
 
         response = requests.get(url)
         if response.status_code != HTTPStatus.OK:
@@ -52,7 +53,7 @@ class GiteaRepositoryBranchApi:
 
             return GitTree(await response.json())
 
-    def get_file_text_from_raw_content(self, raw_content: str) -> str:
+    def get_text_from_raw_content(self, raw_content: str) -> str:
         return b64decode(raw_content.encode()).decode()
 
     async def get_file_content(self, session: aiohttp.ClientSession, filepath: Path) -> str:
@@ -62,4 +63,4 @@ class GiteaRepositoryBranchApi:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve file {filepath}")
 
-            return self.get_file_text_from_raw_content(await response.json())
+            return self.get_text_from_raw_content(await response.json())
