@@ -21,7 +21,7 @@ class GitEntry:
 
     @classmethod
     def parse_from_raw(cls, raw_entry: dict) -> Self:
-        return GitEntry(raw_entry["path"], raw_entry["type"] == "blob")
+        return GitEntry(path=raw_entry["path"], is_file=raw_entry["type"] == "blob")
 
 
 @dataclass(frozen=True)
@@ -35,4 +35,4 @@ class GitTree:
     @classmethod
     def parse_from_raw(cls, raw_tree: dict) -> Self:
         entries = tuple(GitEntry.parse_from_raw(raw_entry) for raw_entry in raw_tree["tree"])
-        return GitTree(entries)
+        return GitTree(entries=entries)

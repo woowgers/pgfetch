@@ -51,9 +51,10 @@ class GiteaRepositoryBranchApi:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve branch {self.branch} filepaths")
 
-            return GitTree(await response.json())
+            return GitTree.parse_from_raw(await response.json())
 
-    def get_text_from_raw_content(self, raw_content: str) -> str:
+    def get_text_from_raw_content_response(self, raw_content_response: dict) -> str:
+        raw_content = raw_content_response["content"]
         return b64decode(raw_content.encode()).decode()
 
     async def get_file_content(self, session: aiohttp.ClientSession, filepath: Path) -> str:
@@ -63,4 +64,4 @@ class GiteaRepositoryBranchApi:
             if response.status != 200:
                 raise RuntimeError(f"Failed to retrieve file {filepath}")
 
-            return self.get_text_from_raw_content(await response.json())
+            return self.get_text_from_raw_content_response(await response.json())

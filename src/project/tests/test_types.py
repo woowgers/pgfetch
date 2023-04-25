@@ -5,14 +5,12 @@ from ..types import GitBranch, GitEntry, GitTree
 
 class TestBranch:
     def test_parse_from_raw_parses_as_expected(self, raw_branch: dict, expected_branch: GitBranch):
-        branch = GitBranch.parse_from_raw(raw_branch)
-        assert branch == expected_branch
+        assert GitBranch.parse_from_raw(raw_branch) == expected_branch
 
 
 class TestGitEntry:
     def test_parse_from_raw_parses_as_expected(self, raw_file_entry: dict, file_entry: GitEntry):
-        entry = GitEntry.parse_from_raw(raw_file_entry)
-        assert entry == file_entry
+        assert GitEntry.parse_from_raw(raw_file_entry) == file_entry
 
     def test_is_file_if_file(self, file_entry: GitEntry):
         assert file_entry.is_file == True

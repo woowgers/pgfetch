@@ -144,8 +144,8 @@ def entries(raw_entries: Sequence[dict]) -> tuple[GitEntry, ...]:
 
 
 @pytest.fixture
-def dir_entry(raw_file_entry: dict) -> GitEntry:
-    return GitEntry.parse_from_raw(raw_file_entry)
+def dir_entry(raw_dir_entry: dict) -> GitEntry:
+    return GitEntry.parse_from_raw(raw_dir_entry)
 
 
 @pytest.fixture
