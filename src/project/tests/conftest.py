@@ -114,7 +114,7 @@ def expected_file_content_url(api: GiteaRepositoryBranchApi, file_entry: GitEntr
 @pytest.fixture
 @pytest.mark.asyncio
 async def fetcher(api: GiteaRepositoryBranchApi) -> GiteaRepositoryBranchFetcher:
-    ...
+    return GiteaRepositoryBranchFetcher(api.host, api.org, api.repo, api.branch)
 
 
 @pytest.fixture

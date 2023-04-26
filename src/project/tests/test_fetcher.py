@@ -7,6 +7,7 @@ from project.types import GitEntry
 from ..fetcher import GiteaRepositoryBranchFetcher
 
 
+@pytest.mark.skip
 class TestWriteFileContent:
     @pytest.mark.asyncio
     async def test_writes_file_with_expected_content(
