@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 import pytest_asyncio
 
-from project.giteaapi import BaseRepositoryBranchApi
+from project.api.base import BaseRepositoryBranchApi
 
 
 @pytest_asyncio.fixture

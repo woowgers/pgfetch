@@ -1,32 +1,13 @@
 from base64 import b64decode
 from http import HTTPStatus
 from pathlib import Path
-from typing import Sequence, Protocol
+from typing import Sequence
 
 import aiohttp
 import requests
 
+from project.api.base import BaseRepositoryBranchApi
 from project.types import GitBranch, GitTree
-
-
-class BaseRepositoryBranchApi(Protocol):
-    def _branches_list_url(self) -> str:
-        ...
-
-    def _branch_tree_url(self) -> str:
-        ...
-
-    def _file_content_url(self, filepath: Path) -> str:
-        ...
-
-    def get_branch_id(self) -> str:
-        ...
-
-    async def get_branch_tree(self) -> GitTree:
-        ...
-
-    async def get_file_content(self, filepath: Path) -> str:
-        ...
 
 
 class GiteaRepositoryBranchApi(BaseRepositoryBranchApi):
