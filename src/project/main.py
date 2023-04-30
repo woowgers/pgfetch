@@ -6,7 +6,7 @@ from base64 import b64encode
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from project.fetcher import GiteaRepositoryBranchFetcher
+from project.fetcher import RepositoryBranchFetcher
 
 
 def configure_logging():
@@ -20,7 +20,7 @@ def configure_logging():
 
 
 async def fetch_repo_branch(root_dir: Path) -> None:
-    fetcher = GiteaRepositoryBranchFetcher(
+    fetcher = RepositoryBranchFetcher(
         host="gitea.radium.group", org="radium", repo="project-configuration", branch="master"
     )
     async with fetcher:
