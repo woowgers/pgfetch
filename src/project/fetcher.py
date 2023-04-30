@@ -5,7 +5,7 @@ from pathlib import Path
 import aiofiles
 
 from project.api.base import BaseRepositoryBranchApi
-from project.types import GitTree
+from project.models import GitTree
 
 
 class RepositoryBranchFetcher:

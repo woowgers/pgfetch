@@ -7,7 +7,7 @@ import aiohttp
 import requests
 
 from project.api.base import BaseRepositoryBranchApi
-from project.types import GitBranch, GitTree
+from project.models import GitBranch, GitTree
 
 
 class GiteaRepositoryBranchApi(BaseRepositoryBranchApi):

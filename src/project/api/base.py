@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Protocol
 
-from project.types import GitTree
+from project.models import GitTree
 
 
 class BaseRepositoryBranchApi(Protocol):

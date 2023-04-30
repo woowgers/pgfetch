@@ -6,6 +6,9 @@ from base64 import b64encode
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import aiohttp
+
+from project.api.gitea import GiteaRepositoryBranchApi
 from project.fetcher import RepositoryBranchFetcher
 
 
@@ -20,17 +23,29 @@ def configure_logging():
 
 
 async def fetch_repo_branch(root_dir: Path) -> None:
-    fetcher = RepositoryBranchFetcher(
-        host="gitea.radium.group", org="radium", repo="project-configuration", branch="master"
+    session = aiohttp.ClientSession()
+    api_connector = GiteaRepositoryBranchApi(
+        session=session,
+        host="gitea.radium.group",
+        org="radium",
+        repo="project-configuration",
+        branch="master",
     )
-    async with fetcher:
+    fetcher = RepositoryBranchFetcher(api=api_connector)
+
+    async with session:
         await fetcher.fetch_files(root_dir=root_dir)
 
 
 def write_dir_checksum_to_file(root_dir: Path, checksums_file: Path) -> None:
-    for filepath in root_dir.glob("**/*"):
-        checksum = b64encode(filepath.read_bytes()).decode()
-        checksums_file.write_text(f"{filepath}\t{checksum}\n")
+    with checksums_file.open("w") as f:
+        for filepath in root_dir.glob("**/*"):
+            if filepath.is_dir():
+                continue
+
+            checksum = b64encode(filepath.read_bytes()).decode()
+            f.write(f"{filepath}\t{checksum}\n")
+
     logging.info(f"saved checksums to {checksums_file}")
     logging.info(f"{root_dir} content: " + "\n".join(map(str, os.walk(root_dir))))
 

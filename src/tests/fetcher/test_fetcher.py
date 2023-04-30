@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from project.fetcher import RepositoryBranchFetcher
-from project.types import GitTree, GitEntry
+from project.models import GitTree, GitEntry
 
 pytestmark = pytest.mark.asyncio
 
