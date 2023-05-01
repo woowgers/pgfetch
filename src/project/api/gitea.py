@@ -16,7 +16,7 @@ class GiteaRepositoryBranch(BaseRepositoryBranch):
         return f"https://{self.host}/api/v1"
 
     def get_branches_list_url(self) -> str:
-        return f"{self.base_url}"
+        return f"{self.base_url}/repos/{self.org}/{self.repo}/branches"
 
     def get_branch_tree_url(self, branch_id: str) -> str:
         return f"{self.base_url}/repos/{self.org}/{self.repo}/git/trees/{branch_id}?recursive=true"
