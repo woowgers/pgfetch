@@ -3,16 +3,13 @@ from pathlib import Path
 import pytest
 
 from project.fetcher import RepositoryBranchFetcher
-from project.models import GitTree, GitEntry
+from project.models import GitEntry, GitTree
 
 pytestmark = pytest.mark.asyncio
 
 
 def check_files(root_dir: Path, files_contents: dict[Path, str]):
-    for filepath in root_dir.glob("**/*"):
-        if filepath.is_dir():
-            continue
-
+    for filepath in filter(Path.is_file, root_dir.glob("**/*")):
         expected_file_content = files_contents.pop(root_dir / filepath)
         assert filepath.read_text() == expected_file_content
 
@@ -34,9 +31,7 @@ async def test_fetch_files(mock_api, tmp_path: Path):
         tmp_path / "dir2/dir3/file9": "content9",
         tmp_path / "dir2/dir3/file10": "content10",
     }
-    git_entries = tuple(
-        GitEntry(path=filepath, is_file=True) for filepath in files_contents
-    )
+    git_entries = tuple(GitEntry(path=filepath, is_file=True) for filepath in files_contents)
 
     mock_api.get_branch_tree.return_value = GitTree(entries=git_entries)
     mock_api.get_file_content.side_effect = lambda filepath: files_contents[filepath]

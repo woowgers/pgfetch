@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 
 import aiohttp
 
-from project.api.gitea import GiteaRepositoryBranchApi
+from project.api.gitea import GiteaRepositoryBranch, GiteaRepositoryBranchApi
 from project.fetcher import RepositoryBranchFetcher
 
 
@@ -24,13 +24,8 @@ def configure_logging():
 
 async def fetch_repo_branch(root_dir: Path) -> None:
     session = aiohttp.ClientSession()
-    api_connector = GiteaRepositoryBranchApi(
-        session=session,
-        host="gitea.radium.group",
-        org="radium",
-        repo="project-configuration",
-        branch="master",
-    )
+    branch = GiteaRepositoryBranch(host="gitea.radium.group", org="radium", repo="project-configuration", name="master")
+    api_connector = GiteaRepositoryBranchApi(session=session, branch=branch)
     fetcher = RepositoryBranchFetcher(api=api_connector)
 
     async with session:
@@ -39,10 +34,7 @@ async def fetch_repo_branch(root_dir: Path) -> None:
 
 def write_dir_checksum_to_file(root_dir: Path, checksums_file: Path) -> None:
     with checksums_file.open("w") as f:
-        for filepath in root_dir.glob("**/*"):
-            if filepath.is_dir():
-                continue
-
+        for filepath in filter(Path.is_file, root_dir.glob("**/*")):
             checksum = b64encode(filepath.read_bytes()).decode()
             f.write(f"{filepath}\t{checksum}\n")
 

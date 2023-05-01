@@ -40,9 +40,7 @@ class RepositoryBranchFetcher:
         async with aiofiles.open(local_filepath, "w") as f:
             await f.write(content)
 
-    async def _fetch_file(
-        self, root_dir: Path, filepath: Path, n_tasks_sem: asyncio.Semaphore
-    ) -> None:
+    async def _fetch_file(self, root_dir: Path, filepath: Path, n_tasks_sem: asyncio.Semaphore) -> None:
         async with n_tasks_sem:
             logging.info(f"saving {filepath}...")
 
